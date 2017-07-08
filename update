@@ -1,0 +1,42 @@
+#!/bin/php -q
+<?php
+/**
+ * @ide         PhpStorm.
+ * @author:     Pnsme
+ * @datetime:   2017-7-7 23:04
+ * @version:    0.0
+ * @description:   [description]
+ */
+
+$short_options = '';
+$short_options .= 'v'; //查看进度
+$short_options .= '';
+$long_options = array(
+    'config:',              //指定配置文件
+    'new-config::',           //生成默认配置文件
+
+    'keep',                 //操作后保留原文件
+    'hash',                 //输出操作hash
+    'version:',             //操作指定版本
+
+    'pack',                 //打包
+    'pack-include-dir:',    //指定打包程序扫描包含目录
+    'pack-exclude-dir:',    //指定打包程序扫描排除目录
+    'file-new-suffix:',     //新增文件后缀标记
+    'file-update-suffix:',  //更新文件后缀标记
+    'folder-new-tag:',      //新增目录标记
+    'folder-update-tag:',   //更新目录（名）标记
+
+    'release',               //更新
+    'release-include-dir:',  //指定升级程序包含的目录
+    'release-exclude-dir:',  //指定升级程序排除的目录
+);
+
+$options = getopt($short_options, $long_options);
+
+include_once 'updater.php';
+$updater = updater::getInstance();
+
+$updater->option($options);
+
+
