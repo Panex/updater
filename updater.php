@@ -21,6 +21,7 @@ class updater{
     private $config;
     private $init_item;
     private $config_path;
+    private $data_path;
 
     private function __construct(){
         $params = require 'params.php';
@@ -30,6 +31,7 @@ class updater{
         $this->config = $params['config'];
         $this->init_item = $params['init_item'];
         $this->config_path = $params['init_item']['file']['config'];
+        $this->data_path = $params['init_item']['dir']['data'];
     }
 
     private function __clone(){
@@ -171,8 +173,25 @@ class updater{
         }
 
         $result = $this->item_finder($root);
-        var_dump($result);
 
+        $pack_dir = $this->data_path.DIRECTORY_SEPARATOR.'update_'.date('Ymd-His');
+        mkdir($pack_dir);
+        foreach($result['dirs'] as $dir){
+            mkdir($pack_dir.DIRECTORY_SEPARATOR.$dir, 0777, true);
+        }
+
+        foreach($result['files'] as $file){
+            $dir = dirname($pack_dir.DIRECTORY_SEPARATOR.$file);
+            if(!is_dir($dir)){
+                mkdir($dir, 0777, true);
+            }
+            copy($file, $pack_dir.DIRECTORY_SEPARATOR.$file);
+//            $handle = fopen($pack_dir . DIRECTORY_SEPARATOR . $file, 'w');
+//            fclose($handle);
+        }
+
+        $this->zzz();
+        var_dump($result);
     }
 
     public function get_options(){
@@ -222,7 +241,8 @@ class updater{
                 continue;
             }
 
-            if(is_dir($dir.'/'.$item)){
+            $full_dir = $dir.DIRECTORY_SEPARATOR.$item;
+            if(is_dir($full_dir) && !$this->exclude_dir($full_dir)){
                 $dirs[] = $item;
             }else{
                 $files[] = $item;
@@ -231,5 +251,80 @@ class updater{
 
         return array('dirs' => $dirs, 'files' => $files);
     }
+
+    /**
+     * 判断$dir是否属于排除的目录，如果是，这返回true,否则返回false
+     * @param $dir
+     * @return bool
+     */
+    private function exclude_dir($dir){
+        $exclude_dir = $this->config['exclude-dir'];
+        foreach($exclude_dir as $item){
+            $escaped_item = '';
+            $item = str_split($item);
+            foreach($item as $c){
+                $escaped_item .= $this->char_escape($c);
+            }
+            if(preg_match("/{$escaped_item}/", $dir)){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function char_escape($char){
+        $map = array(
+            '.'  => '\.',
+            '['  => '\[',
+            ']'  => '\]',
+            '('  => '\(',
+            ')'  => '\)',
+            '|'  => '\|',
+            '/'  => '\\'.DIRECTORY_SEPARATOR,
+            '\\' => '\\'.DIRECTORY_SEPARATOR,
+        );
+        if(array_key_exists($char, $map)){
+            return $map[$char];
+        }else{
+            return $char;
+        }
+    }
+
+    private function addFileToZip($path, ZipArchive $zip){
+        $handler = opendir($path); //打开当前文件夹由$path指定。
+        while(($filename = readdir($handler)) !== false){
+            if($filename != "." && $filename != ".."){//文件夹文件名字为'.'和‘..’，不要对他们进行操作
+                if(is_dir($path."/".$filename)){// 如果读取的某个对象是文件夹，则递归
+                    $this->addFileToZip($path."/".$filename, $zip);
+                }else{ //将文件加入zip对象
+                    $zip->addFile($path."/".$filename);
+                }
+            }
+        }
+        @closedir($path);
+    }
+
+    private function zzz(){
+        $zip = new ZipArchive();
+        if($zip->open('test.zip', ZipArchive::OVERWRITE) === TRUE){
+            $this->addFileToZip('.update/data', $zip); //调用方法，对要打包的根目录进行操作，并将ZipArchive的对象传递给方法
+            $zip->close(); //关闭处理的zip文件
+        }
+    }
+
+    private function zip(){
+        $zip = new ZipArchive;
+        $res = $zip->open('./test.zip');
+        //如果打开成功
+        if($res === TRUE){
+            //如果打开失败
+            $zip->addFile();
+        }else{
+            //输出出错的代码
+            echo 'failed, code:'.$res;
+        }
+        $zip->close();
+    }
+
 
 }

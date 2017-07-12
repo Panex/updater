@@ -46,16 +46,17 @@ return array(
         'file-update-suffix' => 'uf',  //更新文件后缀标记，通过使用‘|’来标记多种配置
         'folder-new-tag'     => 'nt',      //新增目录标记，通过使用‘|’来标记多种配置
         'folder-update-tag'  => 'ut',   //更新目录（名）标记，通过使用‘|’来标记多种配置
-        'config-segment'     => '.update',  //更新配置片段，通过使用‘|’来标记多种配置
+        'config-segment'     => '.update',  //配置片段文件名，通过使用‘|’来标记多种配置
         'clear-config'       => false,        //是否在操作后清理所有的配置项
+        'exclude-dir'        => array('.update'),
     ),
     'init_item'  => array(
         'dir'  => array(
-            'base'   => '.update',
-            'backup' => '.update'.DIRECTORY_SEPARATOR.'backup',
-            'caches' => '.update'.DIRECTORY_SEPARATOR.'caches',
-            'info'   => '.update'.DIRECTORY_SEPARATOR.'info',
-            'logs'   => '.update'.DIRECTORY_SEPARATOR.'logs',
+            'base'   => '.update',                              //升级器基础目录
+            'backup' => '.update'.DIRECTORY_SEPARATOR.'backup', //备份目录
+            'caches' => '.update'.DIRECTORY_SEPARATOR.'caches', //缓存目录
+            'data'   => '.update'.DIRECTORY_SEPARATOR.'data',   //数据目录
+            'logs'   => '.update'.DIRECTORY_SEPARATOR.'logs',   //日志
         ),
         'file' => array(
             'config' => '.update/config.json',
