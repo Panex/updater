@@ -18,7 +18,7 @@ return array(
         'version:',             //操作指定版本
         'clear',                //清理项目中的配置内容
 
-        'pack',                 //打包
+        'pack::',                 //打包
         'pack-include-dir:',    //指定打包程序扫描包含目录
         'pack-exclude-dir:',    //指定打包程序扫描排除目录
         'file-new-suffix:',     //新增文件后缀标记
@@ -48,15 +48,16 @@ return array(
         'folder-update-tag'  => 'ut',   //更新目录（名）标记，通过使用‘|’来标记多种配置
         'config-segment'     => '.update',  //配置片段文件名，通过使用‘|’来标记多种配置
         'clear-config'       => false,        //是否在操作后清理所有的配置项
-        'exclude-dir'        => array('.update'),
+        'exclude-dir'        => array('.update', 'update'),
     ),
     'init_item'  => array(
         'dir'  => array(
-            'base'   => '.update',                              //升级器基础目录
-            'backup' => '.update'.DIRECTORY_SEPARATOR.'backup', //备份目录
-            'caches' => '.update'.DIRECTORY_SEPARATOR.'caches', //缓存目录
-            'data'   => '.update'.DIRECTORY_SEPARATOR.'data',   //数据目录
-            'logs'   => '.update'.DIRECTORY_SEPARATOR.'logs',   //日志
+            'base'    => '.update',                              //升级器基础目录
+            'backup'  => '.update'.DIRECTORY_SEPARATOR.'backup', //备份目录
+            'caches'  => '.update'.DIRECTORY_SEPARATOR.'caches', //缓存目录
+            'data'    => '.update'.DIRECTORY_SEPARATOR.'data',   //数据目录
+            'package' => 'update',
+            'logs'    => '.update'.DIRECTORY_SEPARATOR.'logs',   //日志
         ),
         'file' => array(
             'config' => '.update/config.json',

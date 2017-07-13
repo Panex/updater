@@ -22,6 +22,7 @@ class updater{
     private $init_item;
     private $config_path;
     private $data_path;
+    private $package_path;
 
     private function __construct(){
         $params = require 'params.php';
@@ -32,6 +33,7 @@ class updater{
         $this->init_item = $params['init_item'];
         $this->config_path = $params['init_item']['file']['config'];
         $this->data_path = $params['init_item']['dir']['data'];
+        $this->package_path = $params['init_item']['dir']['package'];
     }
 
     private function __clone(){
@@ -165,7 +167,7 @@ class updater{
     }
 
 
-    private function pack(){
+    private function pack($input, $opt){
         $root = $this->config['root'];
         if(!is_dir($root)){
             $this->error(self::ERROR_ROOT_NOT_EXISTS);
@@ -173,25 +175,29 @@ class updater{
         }
 
         $result = $this->item_finder($root);
-
-        $pack_dir = $this->data_path.DIRECTORY_SEPARATOR.'update_'.date('Ymd-His');
+        $pack_dir = $this->package_path.DIRECTORY_SEPARATOR.'update_'.date('Ymd-His');
         mkdir($pack_dir);
-        foreach($result['dirs'] as $dir){
-            mkdir($pack_dir.DIRECTORY_SEPARATOR.$dir, 0777, true);
-        }
-
-        foreach($result['files'] as $file){
-            $dir = dirname($pack_dir.DIRECTORY_SEPARATOR.$file);
-            if(!is_dir($dir)){
-                mkdir($dir, 0777, true);
+        if(!empty($result['dirs'])){
+            foreach($result['dirs'] as $dir){
+                mkdir($pack_dir.DIRECTORY_SEPARATOR.$dir, 0777, true);
             }
-            copy($file, $pack_dir.DIRECTORY_SEPARATOR.$file);
-//            $handle = fopen($pack_dir . DIRECTORY_SEPARATOR . $file, 'w');
-//            fclose($handle);
         }
 
-        $this->zzz();
-        var_dump($result);
+        if(!empty($result['files'])){
+            foreach($result['files'] as $file){
+                $dir = dirname($pack_dir.DIRECTORY_SEPARATOR.$file);
+                if(!is_dir($dir)){
+                    mkdir($dir, 0777, true);
+                }
+                copy($file, $pack_dir.DIRECTORY_SEPARATOR.$file);
+            }
+        }
+
+        $this->zip($pack_dir);
+        if($input[$opt] != 'debug'){
+//            $this->clean_dir($pack_dir);
+            $this->cleanup_directory($pack_dir);
+        }
     }
 
     public function get_options(){
@@ -209,6 +215,11 @@ class updater{
         echo $error[$error_mark];
     }
 
+    /**
+     * 查找$dir目录下的所有需要打包的文件和文件夹
+     * @param $dir
+     * @return array
+     */
     private function item_finder($dir){
         static $file_list = array();
         $items = $this->dir_analyse($dir);
@@ -232,6 +243,11 @@ class updater{
         return $file_list;
     }
 
+    /**
+     * 将一个目录下所有的的文件和文件夹进行分类，存储到一个数据类并返回
+     * @param $dir
+     * @return array
+     */
     private function dir_analyse($dir){
         $dir_arr = scandir($dir);
         $dirs = array();
@@ -265,13 +281,19 @@ class updater{
             foreach($item as $c){
                 $escaped_item .= $this->char_escape($c);
             }
-            if(preg_match("/{$escaped_item}/", $dir)){
+            $dir = ltrim($dir, '.'.DIRECTORY_SEPARATOR);
+            if(preg_match("/^{$escaped_item}/", $dir)){
                 return true;
             }
         }
         return false;
     }
 
+    /**
+     * 将正则表达式的特殊字符进行转义
+     * @param $char
+     * @return mixed
+     */
     private function char_escape($char){
         $map = array(
             '.'  => '\.',
@@ -290,40 +312,75 @@ class updater{
         }
     }
 
-    private function addFileToZip($path, ZipArchive $zip){
-        $handler = opendir($path); //打开当前文件夹由$path指定。
-        while(($filename = readdir($handler)) !== false){
-            if($filename != "." && $filename != ".."){//文件夹文件名字为'.'和‘..’，不要对他们进行操作
-                if(is_dir($path."/".$filename)){// 如果读取的某个对象是文件夹，则递归
-                    $this->addFileToZip($path."/".$filename, $zip);
-                }else{ //将文件加入zip对象
-                    $zip->addFile($path."/".$filename);
-                }
-            }
-        }
-        @closedir($path);
-    }
-
-    private function zzz(){
+    /**
+     * 将path目录下的所有文件添加到zip压缩包内
+     * @param $path
+     */
+    private function zip($path){
         $zip = new ZipArchive();
-        if($zip->open('test.zip', ZipArchive::OVERWRITE) === TRUE){
-            $this->addFileToZip('.update/data', $zip); //调用方法，对要打包的根目录进行操作，并将ZipArchive的对象传递给方法
+        $open_zip = $zip->open($path.'.zip', ZipArchive::CREATE);
+        if($open_zip === TRUE){
+            $this->addFileToZip($path, $zip, $path); //调用方法，对要打包的根目录进行操作，并将ZipArchive的对象传递给方法
             $zip->close(); //关闭处理的zip文件
         }
     }
 
-    private function zip(){
-        $zip = new ZipArchive;
-        $res = $zip->open('./test.zip');
-        //如果打开成功
-        if($res === TRUE){
-            //如果打开失败
-            $zip->addFile();
-        }else{
-            //输出出错的代码
-            echo 'failed, code:'.$res;
+    /**
+     * 递归添加$path目录中的文件和文件夹到zip压缩包内
+     * @param $path
+     * @param ZipArchive $zip
+     * @param $dir
+     */
+    private function addFileToZip($path, ZipArchive $zip, $dir){
+        $handler = opendir($path); //打开当前文件夹由$path指定。
+        while(($filename = readdir($handler)) !== false){
+            if($filename != "." && $filename != ".."){//文件夹文件名字为'.'和‘..’，不要对他们进行操作
+                $full_filename = $path.DIRECTORY_SEPARATOR.$filename;
+                if(is_dir($full_filename)){// 如果读取的某个对象是文件夹，则递归
+                    $dir_name = $this->filter_dir($full_filename, $dir);
+                    $zip->addEmptyDir($dir_name);   //添加空目录
+                    $this->addFileToZip($full_filename, $zip, $dir);
+                }else{ //将文件加入zip对象
+                    $file_name = $this->filter_dir($full_filename, $dir);
+                    $zip->addFile($full_filename, $file_name);
+                }
+            }
         }
-        $zip->close();
+        closedir($handler);
+    }
+
+    /**
+     * 将全部路径中的非升级目录路径删除
+     * @param $full_filename
+     * @param $dir
+     * @return string
+     */
+    private function filter_dir($full_filename, $dir){
+        $dir_len = strlen($dir);
+        return ltrim(substr($full_filename, $dir_len), DIRECTORY_SEPARATOR);
+    }
+
+    /**
+     * 递归删除一个目录和该目录下的所有文件、文件夹
+     * @param $dir
+     */
+    private function clean_dir($dir){
+        $handler = opendir($dir);
+        while(($filename = readdir($handler)) !== false){
+            if($filename != "." && $filename != ".."){//文件夹文件名字为'.'和‘..’，不要对他们进行操作
+                $path = $dir.DIRECTORY_SEPARATOR.$filename;
+                if(is_dir($path)){// 如果读取的某个对象是文件夹，则递归
+                    if(count(scandir($path)) == 2){//目录为空,=2是因为.和..存在
+                        rmdir($path);// 删除空目录
+                    }else{
+                        $this->clean_dir($path);
+                        rmdir($path);
+                    }
+                }else{ //删除文件
+                    unlink($path);
+                }
+            }
+        }
     }
 
 
